@@ -148,7 +148,13 @@ void ISBridgeFastRTPSToNGSIv2::NGSIv2Publisher::write(JsonNGSIv2* payload)
 
         string entityId = payload->entityId();
         string data = payload->data();
-        request.setOpt(new curlpp::options::Url(url + "/v2/entities/" + entityId + "/attrs"));
+        if (entityId.length() > 0) {
+            // entity update
+            request.setOpt(new curlpp::options::Url(url + "/v2/entities/" + entityId + "/attrs"));
+        } else {
+            // batch update
+            request.setOpt(new curlpp::options::Url(url + "/v2/op/update"));
+        }
         request.setOpt(new curlpp::options::Verbose(true));
         std::list<std::string> header;
         header.push_back("Content-Type: application/json");
