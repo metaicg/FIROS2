@@ -164,7 +164,13 @@ string ISBridgeFastRTPSToNGSIv2::NGSIv2Publisher::write(SerializedPayload_t* pay
         //string payload = getPayload(json);
         string entityId = json.entityId();
         string payload = json.data();
-        request.setOpt(new curlpp::options::Url(url + "/v2/entities/" + entityId + "/attrs"));
+        if (entityId.length() > 0) {
+            // entity update
+            request.setOpt(new curlpp::options::Url(url + "/v2/entities/" + entityId + "/attrs"));
+        } else {
+            // batch update
+            request.setOpt(new curlpp::options::Url(url + "/v2/op/update"));
+        }
         request.setOpt(new curlpp::options::Verbose(true));
         std::list<std::string> header;
         header.push_back("Content-Type: application/json");
