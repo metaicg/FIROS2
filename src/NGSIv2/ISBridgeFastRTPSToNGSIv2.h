@@ -32,6 +32,7 @@
 #include "../../thirdparty/integration-services/src/GenericPubSubTypes.h"
 #include <asio.hpp>
 
+#include "idl/JsonNGSIv2.h"
 #include "NGSIv2Params.h"
 
 #ifdef _WIN32
@@ -50,6 +51,9 @@ using namespace eprosima::fastrtps;
 using namespace eprosima::fastrtps::rtps;
 using namespace curlpp::options;
 using namespace curlpp::infos;
+
+typedef void (*transformfunc_t)(SerializedPayload_t *serialized_input, JsonNGSIv2 *output);
+
 
 class ISBridgeFastRTPSToNGSIv2 : public ISBridge
 {
@@ -77,7 +81,7 @@ private:
         NGSIv2Publisher(const string host, const uint16_t port);
         void setHostPort(const string host, const uint16_t port);
         ~NGSIv2Publisher();
-        string write(SerializedPayload_t *payload);
+        void write(JsonNGSIv2 *payload);
     } ngsiv2_publisher;
 
     class SubListener : public SubscriberListener{
@@ -92,7 +96,7 @@ private:
         void onSubscriptionMatched(Subscriber* sub, MatchingInfo& info);
         void onNewDataMessage(Subscriber* sub);
         NGSIv2Publisher *listener_publisher;
-        userf_t user_transformation;
+        transformfunc_t user_transformation;
         void *handle;
         char *error;
 

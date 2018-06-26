@@ -94,10 +94,10 @@ void ISBridgeFastRTPSToNGSIv2::SubListener::loadLibrary(const char* file_path)
 {
     if(file_path){
         handle = eProsimaLoadLibrary(file_path);
-        user_transformation = (userf_t)eProsimaGetProcAddress(handle, "transformToNGSIv2");
+        user_transformation = (transformfunc_t)eProsimaGetProcAddress(handle, "transformToNGSIv2");
         if (!user_transformation)
         {
-            user_transformation = (userf_t)eProsimaGetProcAddress(handle, "transform");
+            user_transformation = (transformfunc_t)eProsimaGetProcAddress(handle, "transform");
         }
     }
 }
@@ -108,16 +108,16 @@ ISBridgeFastRTPSToNGSIv2::SubListener::~SubListener(){
 
 void ISBridgeFastRTPSToNGSIv2::SubListener::onNewDataMessage(Subscriber* sub){
     SerializedPayload_t serialized_input;
-    SerializedPayload_t serialized_output;
+    JsonNGSIv2 output;
     if(sub->takeNextData(&serialized_input, &m_info)){
         if(m_info.sampleKind == ALIVE){
             if(user_transformation){
-                user_transformation(&serialized_input, &serialized_output);
+                user_transformation(&serialized_input, &output);
+                listener_publisher->write(&output);
             }
             else{
-                serialized_output.copy(&serialized_input, false);
+                std::cout << "Error: user transformation function not defined" << std::endl;
             }
-            listener_publisher->write(&serialized_output);
         }
     }
 }
@@ -139,52 +139,35 @@ void ISBridgeFastRTPSToNGSIv2::NGSIv2Publisher::setHostPort(const string host, c
 }
 
 ISBridgeFastRTPSToNGSIv2::NGSIv2Publisher::~NGSIv2Publisher() {}
-/*
-string getEntityId(const string json)
-{
-    return json.substr(0, json.find_first_of("@"));
-}
 
-string getPayload(const string json)
-{
-    return json.substr(json.find_first_of("@") + 1);
-}
-*/
-string ISBridgeFastRTPSToNGSIv2::NGSIv2Publisher::write(SerializedPayload_t* payload)
+void ISBridgeFastRTPSToNGSIv2::NGSIv2Publisher::write(JsonNGSIv2* payload)
 {
     try {
         curlpp::Cleanup cleaner;
         curlpp::Easy request;
 
-        JsonNGSIv2PubSubType json_pst;
-        JsonNGSIv2 json;
-        json_pst.deserialize(payload, &json);
-
-        //string entityId = getEntityId(json);
-        //string payload = getPayload(json);
-        string entityId = json.entityId();
-        string payload = json.data();
+        string entityId = payload->entityId();
+        string data = payload->data();
         request.setOpt(new curlpp::options::Url(url + "/v2/entities/" + entityId + "/attrs"));
         request.setOpt(new curlpp::options::Verbose(true));
         std::list<std::string> header;
         header.push_back("Content-Type: application/json");
-        //header.push_back("Content-Length: application/json");
 
         request.setOpt(new curlpp::options::HttpHeader(header));
-        request.setOpt(new curlpp::options::PostFields(payload));
-        request.setOpt(new curlpp::options::PostFieldSize(payload.length()));
+        request.setOpt(new curlpp::options::PostFields(data));
+        request.setOpt(new curlpp::options::PostFieldSize(data.length()));
 
         std::ostringstream response;
         request.setOpt(new curlpp::options::WriteStream(&response));
 
         request.perform();
 
-        cout << response.str() << endl;
+        cout << "Response: " << response.str() << endl;
     }
     catch ( curlpp::LogicError & e ) {
-        std::cout << e.what() << std::endl;
+        std::cout << "Error: " << e.what() << std::endl;
     }
     catch ( curlpp::RuntimeError & e ) {
-        std::cout << e.what() << std::endl;
+        std::cout << "Error: " << e.what() << std::endl;
     }
 }
